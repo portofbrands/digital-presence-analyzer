@@ -130,7 +130,7 @@ def _gauge_svg(score: int, label: str, size: int = 160) -> str:
     half = size / 2
     text_y = half + size / 12
     return (
-        f'<div style="display:inline-block;text-align:center;margin:0 12px;">'
+        f'<div style="display:inline-block;text-align:center;margin:0 16px;">'
         f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">'
         f'<circle cx="{half}" cy="{half}" r="{radius}" fill="none" '
         f'stroke="{color}22" stroke-width="8"/>'
@@ -142,7 +142,7 @@ def _gauge_svg(score: int, label: str, size: int = 160) -> str:
         f'font-size="{size/3}" font-weight="700" fill="{color}" '
         f'font-family="Playfair Display, Georgia, serif">{score}</text>'
         f'</svg>'
-        f'<div style="font-size:14px;margin-top:-6px;color:#666;font-weight:500;">{label}</div>'
+        f'<div style="font-size:15px;margin-top:-2px;color:#1b2632;font-weight:600;">{label}</div>'
         f'</div>'
     )
 
@@ -150,12 +150,13 @@ def _gauge_svg(score: int, label: str, size: int = 160) -> str:
 def _metric_card(label: str, value: str, score: float | None) -> str:
     color = _score_color(score)
     return (
-        f'<div style="border-left:4px solid {color};padding:10px 16px;'
-        f'margin:6px 0;background:rgba(127,127,127,0.06);border-radius:6px;">'
-        f'<div style="font-size:12px;color:#888;text-transform:uppercase;'
-        f'letter-spacing:0.5px;">{label}</div>'
-        f'<div style="font-size:24px;color:{color};font-weight:600;'
-        f'margin-top:2px;">{value}</div>'
+        f'<div style="border-left:4px solid {color};padding:14px 20px;'
+        f'margin:10px 0;background:#ffffff;border-radius:8px;'
+        f'box-shadow:0 1px 3px rgba(27,38,50,0.04);">'
+        f'<div style="font-size:13px;color:#5a6470;text-transform:uppercase;'
+        f'letter-spacing:0.8px;font-weight:600;">{label}</div>'
+        f'<div style="font-size:28px;color:{color};font-weight:700;'
+        f'margin-top:4px;font-family:Playfair Display,Georgia,serif;">{value}</div>'
         f'</div>'
     )
 
@@ -167,17 +168,17 @@ def _hero_html(domain: str, overall: int) -> str:
     return (
         f'<div style="background:#ffffff;'
         f'border:1px solid rgba(27,38,50,0.1);border-left:6px solid {color};'
-        f'border-radius:12px;padding:28px 32px;margin:8px 0 24px;'
+        f'border-radius:12px;padding:36px 40px;margin:16px 0 32px;'
         f'box-shadow:0 2px 8px rgba(27,38,50,0.04);">'
-        f'<div style="display:flex;align-items:center;gap:28px;flex-wrap:wrap;">'
-        f'<div style="font-size:72px;font-weight:800;color:{color};'
+        f'<div style="display:flex;align-items:center;gap:32px;flex-wrap:wrap;">'
+        f'<div style="font-size:84px;font-weight:800;color:{color};'
         f'line-height:1;font-family:Playfair Display,Georgia,serif;">{overall}</div>'
         f'<div>'
-        f'<div style="font-size:12px;color:#5a6470;text-transform:uppercase;'
+        f'<div style="font-size:13px;color:#5a6470;text-transform:uppercase;'
         f'letter-spacing:1.5px;font-weight:600;">Totalpoäng — {domain}</div>'
-        f'<div style="font-size:24px;font-weight:700;color:#1b2632;'
-        f'margin-top:4px;">{grade}</div>'
-        f'<div style="font-size:14px;color:#5a6470;margin-top:6px;">'
+        f'<div style="font-size:26px;font-weight:700;color:#1b2632;'
+        f'margin-top:6px;font-family:Playfair Display,Georgia,serif;">{grade}</div>'
+        f'<div style="font-size:15px;color:#5a6470;margin-top:8px;">'
         f'Baserat på prestanda, SEO och digital närvaro</div>'
         f'</div></div></div>'
     )
@@ -484,11 +485,20 @@ st.markdown(
       html, body, .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         font-weight: 300;
+        font-size: 16px;
       }
       .stApp p, .stApp [data-testid="stMarkdownContainer"] p {
         font-weight: 300;
-        line-height: 1.5;
+        line-height: 1.6;
+        font-size: 16px;
       }
+      .stApp [data-testid="stCaptionContainer"],
+      .stApp small { font-size: 14px !important; }
+      [data-testid="stVerticalBlock"] > [data-testid="stVerticalBlockBorderWrapper"],
+      [data-testid="stVerticalBlock"] > [data-testid="element-container"] {
+        margin-bottom: 8px;
+      }
+      [data-testid="stHorizontalBlock"] { gap: 1.5rem !important; }
       .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
       .stApp [data-testid="stMarkdownContainer"] h1,
       .stApp [data-testid="stMarkdownContainer"] h2,
@@ -503,12 +513,12 @@ st.markdown(
       .stApp h1 { font-weight: 800 !important; }
       .stApp .pob-eyebrow {
         font-family: 'Inter', sans-serif !important;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         letter-spacing: 2.5px;
         text-transform: uppercase;
         color: #ffb162;
-        margin-bottom: 12px;
+        margin-bottom: 16px;
       }
       .stApp [data-testid="stMetricValue"] {
         font-family: 'Playfair Display', Georgia, serif !important;
@@ -543,7 +553,11 @@ st.markdown(
       }
       .stTabs [data-baseweb="tab-highlight"],
       .stTabs [data-baseweb="tab-border"] { display: none !important; }
-      .stTabs [data-baseweb="tab-panel"] { padding-top: 24px; }
+      .stTabs [data-baseweb="tab-panel"] { padding-top: 32px; }
+      .stTabs { margin-top: 24px !important; }
+      hr, [data-testid="stDivider"] { margin: 28px 0 !important; }
+      .stContainer { padding: 4px 0; }
+      [data-testid="stExpander"] { margin: 8px 0; }
       .stButton > button {
         font-family: 'Inter', sans-serif;
         font-weight: 600;
@@ -676,7 +690,7 @@ if go and url_input:
         )
         st.markdown(_hero_html(domain, overall), unsafe_allow_html=True)
 
-        gauges_html = "<div style='text-align:center;padding:4px 0 12px;'>"
+        gauges_html = "<div style='text-align:center;padding:8px 0 24px;'>"
         for cat, label in [("performance", "Prestanda"),
                            ("accessibility", "Tillgänglighet"),
                            ("best-practices", "Bästa metoder"),
