@@ -165,18 +165,19 @@ def _hero_html(domain: str, overall: int) -> str:
     grade = "Utmärkt" if overall >= 90 else "Bra" if overall >= 70 else \
             "OK" if overall >= 50 else "Behöver förbättring"
     return (
-        f'<div style="background:linear-gradient(135deg,{color}15,{color}05);'
-        f'border:1px solid {color}33;border-radius:12px;padding:24px;'
-        f'margin:8px 0 20px;">'
-        f'<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">'
-        f'<div style="font-size:64px;font-weight:700;color:{color};'
-        f'line-height:1;">{overall}</div>'
+        f'<div style="background:#ffffff;'
+        f'border:1px solid rgba(27,38,50,0.1);border-left:6px solid {color};'
+        f'border-radius:12px;padding:28px 32px;margin:8px 0 24px;'
+        f'box-shadow:0 2px 8px rgba(27,38,50,0.04);">'
+        f'<div style="display:flex;align-items:center;gap:28px;flex-wrap:wrap;">'
+        f'<div style="font-size:72px;font-weight:800;color:{color};'
+        f'line-height:1;font-family:Manrope,sans-serif;">{overall}</div>'
         f'<div>'
-        f'<div style="font-size:13px;color:#888;text-transform:uppercase;'
-        f'letter-spacing:1px;">Totalpoäng — {domain}</div>'
-        f'<div style="font-size:22px;font-weight:600;color:{color};'
+        f'<div style="font-size:12px;color:#5a6470;text-transform:uppercase;'
+        f'letter-spacing:1.5px;font-weight:600;">Totalpoäng — {domain}</div>'
+        f'<div style="font-size:24px;font-weight:700;color:#1b2632;'
         f'margin-top:4px;">{grade}</div>'
-        f'<div style="font-size:13px;color:#888;margin-top:4px;">'
+        f'<div style="font-size:14px;color:#5a6470;margin-top:6px;">'
         f'Baserat på prestanda, SEO och digital närvaro</div>'
         f'</div></div></div>'
     )
@@ -476,13 +477,43 @@ st.set_page_config(
 
 st.markdown(
     """
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-      .block-container { padding-top: 2rem; max-width: 1100px; }
-      h1, h2, h3 { letter-spacing: -0.5px; }
-      [data-testid="stMetricValue"] { font-weight: 600; }
+      html, body, [class*="st-"], button, input, textarea, select {
+        font-family: 'Manrope', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+      }
+      .block-container { padding-top: 2.5rem; max-width: 1100px; }
+      h1, h2, h3, h4, h5 {
+        font-family: 'Manrope', sans-serif !important;
+        letter-spacing: -0.5px;
+        color: #1b2632;
+      }
+      h1 { font-weight: 800 !important; }
+      [data-testid="stMetricValue"] { font-weight: 700; }
       .stTabs [data-baseweb="tab-list"] { gap: 4px; }
       .stTabs [data-baseweb="tab"] {
-        padding: 8px 18px; border-radius: 8px 8px 0 0;
+        padding: 8px 18px;
+        border-radius: 8px 8px 0 0;
+        font-weight: 600;
+      }
+      .stButton > button {
+        font-weight: 700;
+        border-radius: 8px;
+        border: none;
+        background: #1b2632;
+        color: #ffffff;
+        transition: all 0.2s ease;
+      }
+      .stButton > button:hover {
+        background: #ffb162;
+        color: #1b2632;
+        transform: translateY(-1px);
+      }
+      [data-testid="stTextInput"] input {
+        background: #ffffff;
+        border-radius: 8px;
       }
     </style>
     """,
@@ -490,9 +521,9 @@ st.markdown(
 )
 
 st.markdown(
-    "<h1 style='margin-bottom:4px;'>🔎 Digital Presence Analyzer</h1>"
-    "<p style='color:#888;font-size:16px;margin-top:0;'>"
-    "Få en komplett analys av webbplatsen — sidhastighet, SEO, sociala medier och annonser — på under en minut."
+    "<h1 style='margin-bottom:6px;font-size:42px;'>Analysera din webbsida</h1>"
+    "<p style='color:#5a6470;font-size:17px;margin-top:0;font-weight:500;'>"
+    "Få insikt i hur din sida mår och presterar — sidhastighet, SEO, sociala medier och annonser."
     "</p>",
     unsafe_allow_html=True,
 )
