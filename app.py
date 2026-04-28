@@ -140,7 +140,7 @@ def _gauge_svg(score: int, label: str, size: int = 160) -> str:
         f'transform="rotate(-90 {half} {half})"/>'
         f'<text x="{half}" y="{text_y}" text-anchor="middle" '
         f'font-size="{size/3}" font-weight="700" fill="{color}" '
-        f'font-family="-apple-system, BlinkMacSystemFont, Inter, sans-serif">{score}</text>'
+        f'font-family="Playfair Display, Georgia, serif">{score}</text>'
         f'</svg>'
         f'<div style="font-size:14px;margin-top:-6px;color:#666;font-weight:500;">{label}</div>'
         f'</div>'
@@ -171,7 +171,7 @@ def _hero_html(domain: str, overall: int) -> str:
         f'box-shadow:0 2px 8px rgba(27,38,50,0.04);">'
         f'<div style="display:flex;align-items:center;gap:28px;flex-wrap:wrap;">'
         f'<div style="font-size:72px;font-weight:800;color:{color};'
-        f'line-height:1;font-family:Manrope,sans-serif;">{overall}</div>'
+        f'line-height:1;font-family:Playfair Display,Georgia,serif;">{overall}</div>'
         f'<div>'
         f'<div style="font-size:12px;color:#5a6470;text-transform:uppercase;'
         f'letter-spacing:1.5px;font-weight:600;">Totalpoäng — {domain}</div>'
@@ -479,27 +479,38 @@ st.markdown(
     """
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-      html, body, [class*="st-"], button, input, textarea, select {
-        font-family: 'Manrope', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+      html, body, [class*="st-"], p, span, div, label,
+      button, input, textarea, select {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        font-weight: 400;
       }
+      body, .stMarkdown p { font-weight: 300; line-height: 1.5; }
       .block-container { padding-top: 2.5rem; max-width: 1100px; }
-      h1, h2, h3, h4, h5 {
-        font-family: 'Manrope', sans-serif !important;
-        letter-spacing: -0.5px;
+      h1, h2, h3, h4, h5, h6 {
+        font-family: 'Playfair Display', Georgia, serif !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.5px !important;
         color: #1b2632;
+        line-height: 1.15;
       }
       h1 { font-weight: 800 !important; }
-      [data-testid="stMetricValue"] { font-weight: 700; }
+      [data-testid="stMetricValue"] {
+        font-family: 'Playfair Display', Georgia, serif !important;
+        font-weight: 700;
+      }
       .stTabs [data-baseweb="tab-list"] { gap: 4px; }
       .stTabs [data-baseweb="tab"] {
         padding: 8px 18px;
         border-radius: 8px 8px 0 0;
-        font-weight: 600;
+        font-weight: 500;
+        font-family: 'Inter', sans-serif !important;
       }
       .stButton > button {
-        font-weight: 700;
+        font-family: 'Inter', sans-serif !important;
+        font-weight: 600;
+        letter-spacing: 0.3px;
         border-radius: 8px;
         border: none;
         background: #1b2632;
@@ -514,6 +525,7 @@ st.markdown(
       [data-testid="stTextInput"] input {
         background: #ffffff;
         border-radius: 8px;
+        font-family: 'Inter', sans-serif !important;
       }
     </style>
     """,
@@ -521,8 +533,9 @@ st.markdown(
 )
 
 st.markdown(
-    "<h1 style='margin-bottom:6px;font-size:42px;'>Analysera din webbsida</h1>"
-    "<p style='color:#5a6470;font-size:17px;margin-top:0;font-weight:500;'>"
+    "<h1 style='margin-bottom:8px;font-size:44px;letter-spacing:0.5px;'>"
+    "Analysera din webbsida</h1>"
+    "<p style='color:#5a6470;font-size:17px;margin-top:0;font-weight:300;line-height:1.5;'>"
     "Få insikt i hur din sida mår och presterar — sidhastighet, SEO, sociala medier och annonser."
     "</p>",
     unsafe_allow_html=True,
