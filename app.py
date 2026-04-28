@@ -467,7 +467,12 @@ def scrape_google_ads(domain: str, country: str = "SE",
 
 # ─── UI ──────────────────────────────────────────────────────────────────────
 
-st.set_page_config(page_title="Digital Presence Analyzer", page_icon="🔎", layout="wide")
+st.set_page_config(
+    page_title="Digital Presence Analyzer",
+    page_icon="🔎",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
 st.markdown(
     """
@@ -493,22 +498,17 @@ st.markdown(
 )
 
 SERVER_API_KEY = _load_api_key()
+country = "SE"
 
-with st.sidebar:
-    st.header("⚙️ Inställningar")
-    country = st.selectbox("Land för annonssökning",
-                           ["SE", "US", "GB", "DE", "NO", "DK", "FI"])
-    strategy = st.radio("PageSpeed-läge", ["mobile", "desktop"], horizontal=True)
-    if not SERVER_API_KEY:
+if not SERVER_API_KEY:
+    with st.sidebar:
         api_key_input = st.text_input(
             "Google PageSpeed API-nyckel",
             type="password",
             help="Server-nyckel saknas — ange en egen för att undvika rate limit (429).",
         )
-    else:
-        api_key_input = None
-    st.divider()
-    st.caption("💡 **Tips:** Testa dina egna sajter och konkurrenters för att jämföra.")
+else:
+    api_key_input = None
 
 api_key = SERVER_API_KEY or api_key_input
 
@@ -518,7 +518,19 @@ with st.container(border=True):
         placeholder="example.com eller https://example.com",
         label_visibility="visible",
     )
-    go = st.button("🚀 Analysera", type="primary", use_container_width=True)
+    col_strategy, col_btn = st.columns([1, 2])
+    with col_strategy:
+        strategy = st.segmented_control(
+            "Enhet",
+            ["mobile", "desktop"],
+            default="mobile",
+            label_visibility="collapsed",
+        )
+        if strategy is None:
+            strategy = "mobile"
+    with col_btn:
+        st.write("")
+        go = st.button("🚀 Analysera", type="primary", use_container_width=True)
 
 if go and url_input:
     url = normalize_url(url_input)
