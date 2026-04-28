@@ -515,12 +515,35 @@ st.markdown(
         font-weight: 700;
       }
       .block-container { padding-top: 2.5rem; max-width: 1100px; }
-      .stTabs [data-baseweb="tab-list"] { gap: 4px; }
-      .stTabs [data-baseweb="tab"] {
-        padding: 8px 18px;
-        border-radius: 8px 8px 0 0;
-        font-weight: 500;
+      .stTabs [data-baseweb="tab-list"] {
+        gap: 6px;
+        background: #ffffff;
+        padding: 6px;
+        border-radius: 10px;
+        border: 1px solid rgba(27,38,50,0.08);
       }
+      .stTabs [data-baseweb="tab-list"] button[data-baseweb="tab"] {
+        padding: 12px 22px !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        font-size: 15px !important;
+        color: #5a6470 !important;
+        background: transparent !important;
+        border: none !important;
+        transition: all 0.15s ease;
+      }
+      .stTabs [data-baseweb="tab-list"] button[data-baseweb="tab"]:hover {
+        background: rgba(27,38,50,0.04) !important;
+        color: #1b2632 !important;
+      }
+      .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+        background: #1b2632 !important;
+        color: #ffffff !important;
+        box-shadow: 0 2px 6px rgba(27,38,50,0.15);
+      }
+      .stTabs [data-baseweb="tab-highlight"],
+      .stTabs [data-baseweb="tab-border"] { display: none !important; }
+      .stTabs [data-baseweb="tab-panel"] { padding-top: 24px; }
       .stButton > button {
         font-family: 'Inter', sans-serif;
         font-weight: 600;
