@@ -479,42 +479,57 @@ st.markdown(
     """
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-      html, body, [class*="st-"], p, span, div, label,
-      button, input, textarea, select {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-        font-weight: 400;
+      html, body, .stApp, .stApp p, .stApp span, .stApp div,
+      .stApp label, .stApp button, .stApp input, .stApp textarea,
+      .stApp select, .stApp li {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-weight: 300;
       }
-      body, .stMarkdown p { font-weight: 300; line-height: 1.5; }
-      .block-container { padding-top: 2.5rem; max-width: 1100px; }
-      h1, h2, h3, h4, h5, h6 {
-        font-family: 'Playfair Display', Georgia, serif !important;
+      .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+      .stApp [data-testid="stMarkdownContainer"] h1,
+      .stApp [data-testid="stMarkdownContainer"] h2,
+      .stApp [data-testid="stMarkdownContainer"] h3,
+      .stApp .pob-serif {
+        font-family: 'Playfair Display', Georgia, 'Times New Roman', serif !important;
         font-weight: 700 !important;
         letter-spacing: 0.5px !important;
-        color: #1b2632;
-        line-height: 1.15;
+        color: #1b2632 !important;
+        line-height: 1.1 !important;
       }
-      h1 { font-weight: 800 !important; }
-      [data-testid="stMetricValue"] {
+      .stApp h1 { font-weight: 800 !important; }
+      .stApp .pob-eyebrow {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 2.5px;
+        text-transform: uppercase;
+        color: #ffb162;
+        margin-bottom: 12px;
+      }
+      .stApp [data-testid="stMetricValue"] {
         font-family: 'Playfair Display', Georgia, serif !important;
         font-weight: 700;
       }
+      .block-container { padding-top: 2.5rem; max-width: 1100px; }
       .stTabs [data-baseweb="tab-list"] { gap: 4px; }
       .stTabs [data-baseweb="tab"] {
         padding: 8px 18px;
         border-radius: 8px 8px 0 0;
         font-weight: 500;
-        font-family: 'Inter', sans-serif !important;
       }
       .stButton > button {
-        font-family: 'Inter', sans-serif !important;
+        font-family: 'Inter', sans-serif;
         font-weight: 600;
-        letter-spacing: 0.3px;
-        border-radius: 8px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        font-size: 13px;
+        border-radius: 4px;
         border: none;
         background: #1b2632;
         color: #ffffff;
+        padding: 14px 24px;
         transition: all 0.2s ease;
       }
       .stButton > button:hover {
@@ -524,8 +539,9 @@ st.markdown(
       }
       [data-testid="stTextInput"] input {
         background: #ffffff;
-        border-radius: 8px;
-        font-family: 'Inter', sans-serif !important;
+        border-radius: 4px;
+        border: 1px solid rgba(27,38,50,0.15);
+        padding: 12px 16px;
       }
     </style>
     """,
@@ -533,10 +549,14 @@ st.markdown(
 )
 
 st.markdown(
-    "<h1 style='margin-bottom:8px;font-size:44px;letter-spacing:0.5px;'>"
-    "Analysera din webbsida</h1>"
-    "<p style='color:#5a6470;font-size:17px;margin-top:0;font-weight:300;line-height:1.5;'>"
-    "Få insikt i hur din sida mår och presterar — sidhastighet, SEO, sociala medier och annonser."
+    "<div class='pob-eyebrow'>WEBBANALYS · GRATIS</div>"
+    "<h1 class='pob-serif' style='margin:0 0 16px;font-size:54px;line-height:1.05;'>"
+    "Hur presterar<br>din webbsida?"
+    "</h1>"
+    "<p style='color:#1b2632;font-size:18px;margin-top:0;font-weight:300;"
+    "line-height:1.5;max-width:640px;'>"
+    "Få en komplett insikt i sidhastighet, SEO, sociala medier och annonser — "
+    "på under en minut."
     "</p>",
     unsafe_allow_html=True,
 )
