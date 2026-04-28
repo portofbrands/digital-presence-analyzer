@@ -481,11 +481,13 @@ st.markdown(
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-      html, body, .stApp, .stApp p, .stApp span, .stApp div,
-      .stApp label, .stApp button, .stApp input, .stApp textarea,
-      .stApp select, .stApp li {
+      html, body, .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         font-weight: 300;
+      }
+      .stApp p, .stApp [data-testid="stMarkdownContainer"] p {
+        font-weight: 300;
+        line-height: 1.5;
       }
       .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
       .stApp [data-testid="stMarkdownContainer"] h1,
