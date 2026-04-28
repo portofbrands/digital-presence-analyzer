@@ -651,7 +651,7 @@ if go and url_input:
             ps_data["scores"]["performance"],
             len(seo_data["socials"]),
         )
-        st.html(_hero_html(domain, overall))
+        st.markdown(_hero_html(domain, overall), unsafe_allow_html=True)
 
         gauges_html = "<div style='text-align:center;padding:4px 0 12px;'>"
         for cat, label in [("performance", "Prestanda"),
@@ -660,7 +660,7 @@ if go and url_input:
                            ("seo", "SEO")]:
             gauges_html += _gauge_svg(ps_data["scores"][cat], label, size=110)
         gauges_html += "</div>"
-        st.html(gauges_html)
+        st.markdown(gauges_html, unsafe_allow_html=True)
 
     tab1, tab2, tab3, tab4 = st.tabs(["🔍 SEO & Fel", "⚡ Sidhastighet", "📱 Sociala medier", "📢 Annonser"])
 
@@ -708,10 +708,11 @@ if go and url_input:
             with col_score:
                 perf = ps_data["scores"]["performance"]
                 big_gauge = _gauge_svg(perf, "Prestanda", size=220)
-                st.html(
+                st.markdown(
                     f"<div style='text-align:center;padding-top:12px;'>{big_gauge}</div>"
                     "<div style='text-align:center;font-size:13px;color:#888;"
-                    "margin-top:8px;'>🔴 0–49 &nbsp;·&nbsp; 🟠 50–89 &nbsp;·&nbsp; 🟢 90–100</div>"
+                    "margin-top:8px;'>🔴 0–49 &nbsp;·&nbsp; 🟠 50–89 &nbsp;·&nbsp; 🟢 90–100</div>",
+                    unsafe_allow_html=True,
                 )
             with col_shot:
                 if ps_data.get("screenshot"):
@@ -726,7 +727,10 @@ if go and url_input:
                 for i, m in enumerate(metrics):
                     target = m_col1 if i % 2 == 0 else m_col2
                     with target:
-                        st.html(_metric_card(m["label"], m["value"], m["score"]))
+                        st.markdown(
+                            _metric_card(m["label"], m["value"], m["score"]),
+                            unsafe_allow_html=True,
+                        )
 
             st.markdown("#### 🚀 Förbättringsmöjligheter")
             if ps_data["opportunities"]:
