@@ -127,34 +127,69 @@ def _gauge_svg(score: int, label: str, size: int = 160) -> str:
     pct = max(0, min(score, 100)) / 100
     dash = circumference * pct
     gap = circumference - dash
-    return f'''
-    <div style="display:inline-block;text-align:center;margin:0 12px;">
-      <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">
-        <circle cx="{size/2}" cy="{size/2}" r="{radius}"
-                fill="none" stroke="{color}22" stroke-width="8"/>
-        <circle cx="{size/2}" cy="{size/2}" r="{radius}"
-                fill="none" stroke="{color}" stroke-width="8"
-                stroke-dasharray="{dash} {gap}"
-                stroke-linecap="round"
-                transform="rotate(-90 {size/2} {size/2})"/>
-        <text x="{size/2}" y="{size/2 + 14}" text-anchor="middle"
-              font-size="{size/3}" font-weight="600" fill="{color}"
-              font-family="-apple-system, BlinkMacSystemFont, sans-serif">{score}</text>
-      </svg>
-      <div style="font-size:15px;margin-top:-8px;color:#444;">{label}</div>
-    </div>
-    '''
+    half = size / 2
+    text_y = half + size / 12
+    return (
+        f'<div style="display:inline-block;text-align:center;margin:0 12px;">'
+        f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">'
+        f'<circle cx="{half}" cy="{half}" r="{radius}" fill="none" '
+        f'stroke="{color}22" stroke-width="8"/>'
+        f'<circle cx="{half}" cy="{half}" r="{radius}" fill="none" '
+        f'stroke="{color}" stroke-width="8" '
+        f'stroke-dasharray="{dash} {gap}" stroke-linecap="round" '
+        f'transform="rotate(-90 {half} {half})"/>'
+        f'<text x="{half}" y="{text_y}" text-anchor="middle" '
+        f'font-size="{size/3}" font-weight="700" fill="{color}" '
+        f'font-family="-apple-system, BlinkMacSystemFont, Inter, sans-serif">{score}</text>'
+        f'</svg>'
+        f'<div style="font-size:14px;margin-top:-6px;color:#666;font-weight:500;">{label}</div>'
+        f'</div>'
+    )
 
 
 def _metric_card(label: str, value: str, score: float | None) -> str:
     color = _score_color(score)
-    return f'''
-    <div style="border-left:4px solid {color};padding:8px 14px;margin:6px 0;
-                background:#fafafa;border-radius:4px;">
-      <div style="font-size:13px;color:#666;">{label}</div>
-      <div style="font-size:22px;color:{color};font-weight:500;">{value}</div>
-    </div>
-    '''
+    return (
+        f'<div style="border-left:4px solid {color};padding:10px 16px;'
+        f'margin:6px 0;background:rgba(127,127,127,0.06);border-radius:6px;">'
+        f'<div style="font-size:12px;color:#888;text-transform:uppercase;'
+        f'letter-spacing:0.5px;">{label}</div>'
+        f'<div style="font-size:24px;color:{color};font-weight:600;'
+        f'margin-top:2px;">{value}</div>'
+        f'</div>'
+    )
+
+
+def _hero_html(domain: str, overall: int) -> str:
+    color = _score_color(overall)
+    grade = "Utmärkt" if overall >= 90 else "Bra" if overall >= 70 else \
+            "OK" if overall >= 50 else "Behöver förbättring"
+    return (
+        f'<div style="background:linear-gradient(135deg,{color}15,{color}05);'
+        f'border:1px solid {color}33;border-radius:12px;padding:24px;'
+        f'margin:8px 0 20px;">'
+        f'<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">'
+        f'<div style="font-size:64px;font-weight:700;color:{color};'
+        f'line-height:1;">{overall}</div>'
+        f'<div>'
+        f'<div style="font-size:13px;color:#888;text-transform:uppercase;'
+        f'letter-spacing:1px;">Totalpoäng — {domain}</div>'
+        f'<div style="font-size:22px;font-weight:600;color:{color};'
+        f'margin-top:4px;">{grade}</div>'
+        f'<div style="font-size:13px;color:#888;margin-top:4px;">'
+        f'Baserat på prestanda, SEO och digital närvaro</div>'
+        f'</div></div></div>'
+    )
+
+
+def _section_card(title: str, body: str) -> str:
+    return (
+        f'<div style="border:1px solid rgba(127,127,127,0.2);border-radius:10px;'
+        f'padding:18px 22px;margin:8px 0;">'
+        f'<div style="font-size:14px;color:#888;text-transform:uppercase;'
+        f'letter-spacing:0.8px;margin-bottom:8px;">{title}</div>'
+        f'{body}</div>'
+    )
 
 
 def scrape_site(url: str) -> dict:
@@ -433,29 +468,57 @@ def scrape_google_ads(domain: str, country: str = "SE",
 # ─── UI ──────────────────────────────────────────────────────────────────────
 
 st.set_page_config(page_title="Digital Presence Analyzer", page_icon="🔎", layout="wide")
-st.title("🔎 Digital Presence Analyzer")
-st.caption("Analysera ett företags webbplats, SEO, sidhastighet, sociala medier och annonser.")
+
+st.markdown(
+    """
+    <style>
+      .block-container { padding-top: 2rem; max-width: 1100px; }
+      h1, h2, h3 { letter-spacing: -0.5px; }
+      [data-testid="stMetricValue"] { font-weight: 600; }
+      .stTabs [data-baseweb="tab-list"] { gap: 4px; }
+      .stTabs [data-baseweb="tab"] {
+        padding: 8px 18px; border-radius: 8px 8px 0 0;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    "<h1 style='margin-bottom:4px;'>🔎 Digital Presence Analyzer</h1>"
+    "<p style='color:#888;font-size:16px;margin-top:0;'>"
+    "Få en komplett analys av webbplatsen — sidhastighet, SEO, sociala medier och annonser — på under en minut."
+    "</p>",
+    unsafe_allow_html=True,
+)
 
 SERVER_API_KEY = _load_api_key()
 
 with st.sidebar:
-    st.header("Inställningar")
-    country = st.selectbox("Land för annonssökning", ["SE", "US", "GB", "DE", "NO", "DK", "FI"])
+    st.header("⚙️ Inställningar")
+    country = st.selectbox("Land för annonssökning",
+                           ["SE", "US", "GB", "DE", "NO", "DK", "FI"])
     strategy = st.radio("PageSpeed-läge", ["mobile", "desktop"], horizontal=True)
     if not SERVER_API_KEY:
         api_key_input = st.text_input(
             "Google PageSpeed API-nyckel",
             type="password",
-            help="Server-nyckel saknas — ange en egen för att undvika rate limit (429). "
-                 "Gratis: https://developers.google.com/speed/docs/insights/v5/get-started",
+            help="Server-nyckel saknas — ange en egen för att undvika rate limit (429).",
         )
     else:
         api_key_input = None
+    st.divider()
+    st.caption("💡 **Tips:** Testa dina egna sajter och konkurrenters för att jämföra.")
 
 api_key = SERVER_API_KEY or api_key_input
 
-url_input = st.text_input("Företagets webbplats", placeholder="example.com eller https://example.com")
-go = st.button("🚀 Analysera", type="primary", use_container_width=True)
+with st.container(border=True):
+    url_input = st.text_input(
+        "**Företagets webbplats**",
+        placeholder="example.com eller https://example.com",
+        label_visibility="visible",
+    )
+    go = st.button("🚀 Analysera", type="primary", use_container_width=True)
 
 if go and url_input:
     url = normalize_url(url_input)
@@ -504,19 +567,22 @@ if go and url_input:
             else:
                 st.error(f"PageSpeed misslyckades: {e}")
 
-    # Overall score
     if seo_data and ps_data:
         overall = score_overall(
             len(seo_data["issues"]),
             ps_data["scores"]["performance"],
             len(seo_data["socials"]),
         )
-        c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("📊 Totalpoäng", f"{overall}/100")
-        c2.metric("⚡ Performance", f"{ps_data['scores']['performance']}/100")
-        c3.metric("🔍 SEO", f"{ps_data['scores']['seo']}/100")
-        c4.metric("♿ Tillgänglighet", f"{ps_data['scores']['accessibility']}/100")
-        c5.metric("✅ Best Practices", f"{ps_data['scores']['best-practices']}/100")
+        st.html(_hero_html(domain, overall))
+
+        gauges_html = "<div style='text-align:center;padding:4px 0 12px;'>"
+        for cat, label in [("performance", "Prestanda"),
+                           ("accessibility", "Tillgänglighet"),
+                           ("best-practices", "Bästa metoder"),
+                           ("seo", "SEO")]:
+            gauges_html += _gauge_svg(ps_data["scores"][cat], label, size=110)
+        gauges_html += "</div>"
+        st.html(gauges_html)
 
     tab1, tab2, tab3, tab4 = st.tabs(["🔍 SEO & Fel", "⚡ Sidhastighet", "📱 Sociala medier", "📢 Annonser"])
 
@@ -524,46 +590,50 @@ if go and url_input:
         if seo_data:
             col_a, col_b = st.columns(2)
             with col_a:
-                st.write("**Meta-info**")
-                st.write(f"- Title ({seo_data['title_len']} tecken): `{seo_data['title']}`")
-                st.write(f"- Description ({seo_data['description_len']} tecken): `{seo_data['description']}`")
-                st.write(f"- H1: `{seo_data['h1_first']}`")
-                st.write(f"- Bilder: {seo_data['images_total']} totalt, "
-                         f"{seo_data['images_no_alt']} utan alt-text")
-                st.write(f"- Open Graph-taggar: {seo_data['og_tags']}")
-                st.write(f"- robots.txt: {'✅' if robots.get('/robots.txt') else '❌'}")
-                st.write(f"- sitemap.xml: {'✅' if robots.get('/sitemap.xml') else '❌'}")
+                with st.container(border=True):
+                    st.markdown("##### 📝 Meta-info")
+                    st.markdown(
+                        f"**Title** ({seo_data['title_len']} tecken)  \n"
+                        f"<span style='color:#888;font-size:13px;'>{seo_data['title'] or '—'}</span>",
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(
+                        f"**Description** ({seo_data['description_len']} tecken)  \n"
+                        f"<span style='color:#888;font-size:13px;'>{seo_data['description'] or '—'}</span>",
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(
+                        f"**H1**  \n<span style='color:#888;font-size:13px;'>"
+                        f"{seo_data['h1_first'] or '—'}</span>",
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(
+                        f"**Bilder:** {seo_data['images_total']} totalt · "
+                        f"{seo_data['images_no_alt']} utan alt-text  \n"
+                        f"**Open Graph:** {seo_data['og_tags']} taggar  \n"
+                        f"**robots.txt:** {'✅' if robots.get('/robots.txt') else '❌'} · "
+                        f"**sitemap.xml:** {'✅' if robots.get('/sitemap.xml') else '❌'}"
+                    )
 
             with col_b:
-                st.write("**Hittade problem**")
-                if seo_data["issues"]:
-                    for issue in seo_data["issues"]:
-                        st.write(issue)
-                else:
-                    st.success("Inga uppenbara SEO-fel hittades.")
+                with st.container(border=True):
+                    st.markdown("##### ⚠️ Hittade problem")
+                    if seo_data["issues"]:
+                        for issue in seo_data["issues"]:
+                            st.markdown(issue)
+                    else:
+                        st.success("Inga uppenbara SEO-fel hittades. 🎉")
 
     with tab2:
         if ps_data:
-            gauges_html = "<div style='text-align:center;padding:8px 0;'>"
-            for cat, label in [("performance", "Prestanda"),
-                               ("accessibility", "Tillgänglighet"),
-                               ("best-practices", "Bästa metoder"),
-                               ("seo", "SEO")]:
-                gauges_html += _gauge_svg(ps_data["scores"][cat], label, size=110)
-            gauges_html += "</div>"
-            st.markdown(gauges_html, unsafe_allow_html=True)
-            st.divider()
-
             col_score, col_shot = st.columns([1, 1])
             with col_score:
                 perf = ps_data["scores"]["performance"]
                 big_gauge = _gauge_svg(perf, "Prestanda", size=220)
-                st.markdown(
-                    f"<div style='text-align:center;'>{big_gauge}</div>"
+                st.html(
+                    f"<div style='text-align:center;padding-top:12px;'>{big_gauge}</div>"
                     "<div style='text-align:center;font-size:13px;color:#888;"
-                    "margin-top:4px;'>"
-                    "🔴 0–49 &nbsp; 🟠 50–89 &nbsp; 🟢 90–100</div>",
-                    unsafe_allow_html=True,
+                    "margin-top:8px;'>🔴 0–49 &nbsp;·&nbsp; 🟠 50–89 &nbsp;·&nbsp; 🟢 90–100</div>"
                 )
             with col_shot:
                 if ps_data.get("screenshot"):
@@ -571,19 +641,16 @@ if go and url_input:
                              caption=f"Skärmdump ({strategy})",
                              use_container_width=True)
 
-            st.markdown("### Mätvärden")
+            st.markdown("#### 📊 Mätvärden (Core Web Vitals)")
             metrics = ps_data.get("metrics", [])
             if metrics:
                 m_col1, m_col2 = st.columns(2)
                 for i, m in enumerate(metrics):
                     target = m_col1 if i % 2 == 0 else m_col2
                     with target:
-                        st.markdown(
-                            _metric_card(m["label"], m["value"], m["score"]),
-                            unsafe_allow_html=True,
-                        )
+                        st.html(_metric_card(m["label"], m["value"], m["score"]))
 
-            st.markdown("### Förbättringsmöjligheter (mest besparing först)")
+            st.markdown("#### 🚀 Förbättringsmöjligheter")
             if ps_data["opportunities"]:
                 for opp in ps_data["opportunities"]:
                     with st.expander(f"⏱️ {opp['title']}  —  spara ~{opp['savings_ms']} ms"):
@@ -591,19 +658,27 @@ if go and url_input:
             else:
                 st.success("Inga större förbättringsmöjligheter hittades.")
 
-            st.markdown("### Underkända kontroller")
-            if ps_data["failed_audits"]:
-                for fa in ps_data["failed_audits"]:
-                    st.write(f"- {fa['title']}")
-            else:
-                st.success("Alla kontroller godkända.")
+            with st.expander("Visa underkända kontroller"):
+                if ps_data["failed_audits"]:
+                    for fa in ps_data["failed_audits"]:
+                        st.write(f"- {fa['title']}")
+                else:
+                    st.success("Alla kontroller godkända.")
 
     with tab3:
         if seo_data:
             socials = seo_data["socials"]
+            icons = {"Facebook": "📘", "Instagram": "📷", "LinkedIn": "💼",
+                     "Twitter/X": "🐦", "YouTube": "▶️", "TikTok": "🎵"}
             if socials:
-                for name, link in socials.items():
-                    st.write(f"**{name}** — [{link}]({link})")
+                cols = st.columns(min(len(socials), 3))
+                for i, (name, link) in enumerate(socials.items()):
+                    with cols[i % len(cols)]:
+                        with st.container(border=True):
+                            st.markdown(
+                                f"### {icons.get(name, '🔗')} {name}\n"
+                                f"[Öppna profil →]({link})"
+                            )
             else:
                 st.warning("Inga sociala medier-länkar hittades på startsidan.")
                 st.info("💡 **Potential:** Företaget länkar inte tydligt till sina sociala kanaler. "
@@ -611,8 +686,8 @@ if go and url_input:
 
             expected = {"Facebook", "Instagram", "LinkedIn"}
             missing = expected - set(socials.keys())
-            if missing:
-                st.info(f"🔍 Saknar länk till: {', '.join(missing)}. "
+            if missing and socials:
+                st.info(f"🔍 Saknar länk till: **{', '.join(missing)}**. "
                         "De flesta B2C/B2B-företag bör synas på dessa.")
 
     with tab4:
