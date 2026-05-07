@@ -10,7 +10,7 @@ import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from urllib.parse import urlparse, quote_plus
+from urllib.parse import urlparse, quote_plus, urljoin
 
 import requests
 import streamlit as st
@@ -469,6 +469,88 @@ def fetch_sitemap_urls(base_url: str, max_urls: int = 50) -> list[str]:
             seen.add(u)
             dedup.append(u)
     return dedup[:max_urls]
+
+
+def _fetch_with_links(url: str, domain: str, timeout: int = 10) -> tuple[dict, list[str]]:
+    """Fetch URL, return analysis result + internal links found."""
+    try:
+        t0 = time.time()
+        r = requests.get(url, headers={"User-Agent": UA}, timeout=timeout,
+                         allow_redirects=True)
+        elapsed_ms = int((time.time() - t0) * 1000)
+        ctype = r.headers.get("content-type", "")
+        size_kb = len(r.content) // 1024
+        title, description, h1_count = None, None, 0
+        links: list[str] = []
+
+        if "text/html" in ctype:
+            soup = BeautifulSoup(r.text, "html.parser")
+            t = soup.find("title")
+            title = t.get_text(strip=True) if t else None
+            d = soup.find("meta", attrs={"name": "description"})
+            description = d.get("content", "").strip() if d else None
+            h1_count = len(soup.find_all("h1"))
+
+            for a in soup.find_all("a", href=True):
+                href = a["href"].split("#")[0].strip()
+                if not href or href.startswith(("mailto:", "tel:", "javascript:")):
+                    continue
+                full = urljoin(url, href)
+                p = urlparse(full)
+                if p.scheme not in ("http", "https"):
+                    continue
+                if p.netloc.replace("www.", "") != domain:
+                    continue
+                if full.lower().endswith(SKIP_EXTENSIONS):
+                    continue
+                full = full.split("?")[0].rstrip("/")
+                if full and full not in links:
+                    links.append(full)
+
+        return ({
+            "url": url, "status": r.status_code, "elapsed_ms": elapsed_ms,
+            "size_kb": size_kb, "title": title,
+            "description": description, "h1_count": h1_count,
+            "final_url": r.url,
+        }, links)
+    except requests.exceptions.Timeout:
+        return {"url": url, "status": 0, "error": "timeout"}, []
+    except Exception as e:
+        return {"url": url, "status": 0, "error": str(e)[:60]}, []
+
+
+def crawl_from_homepage(start_url: str, max_urls: int = 50,
+                        concurrency: int = 6,
+                        progress_cb=None) -> list[dict]:
+    """BFS-crawl: starta från startsidan, följ interna länkar."""
+    parsed = urlparse(start_url)
+    domain = parsed.netloc.replace("www.", "")
+    visited: set[str] = set()
+    results: list[dict] = []
+    queue: list[str] = [start_url.rstrip("/")]
+
+    while queue and len(results) < max_urls:
+        batch: list[str] = []
+        while queue and len(batch) < concurrency and len(results) + len(batch) < max_urls:
+            u = queue.pop(0)
+            if u not in visited:
+                visited.add(u)
+                batch.append(u)
+        if not batch:
+            break
+
+        with ThreadPoolExecutor(max_workers=concurrency) as ex:
+            futures = {ex.submit(_fetch_with_links, u, domain): u for u in batch}
+            for f in as_completed(futures):
+                result, new_links = f.result()
+                results.append(result)
+                if progress_cb:
+                    progress_cb(len(results), max_urls)
+                for link in new_links:
+                    if link not in visited and link not in queue:
+                        queue.append(link)
+
+    return results[:max_urls]
 
 
 def _crawl_one(url: str, timeout: int = 10) -> dict:
@@ -1027,21 +1109,33 @@ if "analysis" in st.session_state and not (go and not url_input):
         max_pages = st.slider("Max antal sidor att crawla", 10, 100, 50, step=10)
         if st.button("🕸️ Starta crawl", key="btn_crawl",
                      use_container_width=True):
-            with st.spinner("Hämtar URL-lista från sitemap.xml..."):
+            with st.spinner("Letar efter sitemap.xml..."):
                 urls = fetch_sitemap_urls(url, max_urls=max_pages)
-            if not urls:
-                st.warning("Ingen sitemap hittades. Kunde bara crawla startsidan.")
-                urls = [url]
+
+            progress = st.progress(0, text="Förbereder...")
+            results: list[dict] = []
+
+            if urls:
+                st.info(f"✅ Hittade {len(urls)} URL:er i sitemap.")
+                with ThreadPoolExecutor(max_workers=8) as ex:
+                    futures = {ex.submit(_crawl_one, u): u for u in urls}
+                    for i, f in enumerate(as_completed(futures), 1):
+                        results.append(f.result())
+                        progress.progress(
+                            i / len(urls),
+                            text=f"Crawlar via sitemap... ({i}/{len(urls)})")
             else:
-                st.info(f"Hittade {len(urls)} URL:er i sitemap. Crawlar nu...")
-            progress = st.progress(0, text="Crawlar sidor...")
-            results = []
-            with ThreadPoolExecutor(max_workers=8) as ex:
-                futures = {ex.submit(_crawl_one, u): u for u in urls}
-                for i, f in enumerate(as_completed(futures), 1):
-                    results.append(f.result())
-                    progress.progress(i / len(urls),
-                                      text=f"Crawlar sidor... ({i}/{len(urls)})")
+                st.info("ℹ️ Ingen sitemap hittades — crawlar via interna länkar istället.")
+
+                def _update(done: int, total: int):
+                    progress.progress(
+                        min(done / total, 1.0),
+                        text=f"Crawlar via interna länkar... ({done}/{total})")
+
+                results = crawl_from_homepage(url, max_urls=max_pages,
+                                              concurrency=6,
+                                              progress_cb=_update)
+
             progress.empty()
             st.session_state[crawl_key] = analyze_crawl(results)
 
