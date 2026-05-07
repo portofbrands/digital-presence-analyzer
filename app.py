@@ -899,10 +899,7 @@ if go and url_input:
     domain = parsed.netloc.replace("www.", "")
     company = domain.split(".")[0]
 
-    st.divider()
-    st.subheader(f"Resultat för {domain}")
-
-    seo_data, ps_data, robots = None, None, None
+    seo_data, ps_data, robots, tech_data = None, None, None, None
 
     with st.spinner("Hämtar webbplats..."):
         try:
@@ -922,17 +919,9 @@ if go and url_input:
             ps_data = parse_pagespeed(ps_raw)
         except RuntimeError as e:
             if str(e) == "RATE_LIMITED":
-                st.error("⚠️ **Google PageSpeed har rate-limitat dig (429).**")
-                st.markdown(
-                    "Utan API-nyckel tillåter Google bara några anrop per minut. "
-                    "Lös det på 1 minut:\n\n"
-                    "1. Hämta en **gratis** API-nyckel här: "
-                    "[developers.google.com/speed/docs/insights/v5/get-started]"
-                    "(https://developers.google.com/speed/docs/insights/v5/get-started)\n"
-                    "2. Klistra in den i fältet i sidopanelen ⬅️\n"
-                    "3. Klicka **Analysera** igen\n\n"
-                    "_Eller vänta ~60 sekunder och försök igen._"
-                )
+                st.error("⚠️ **Google PageSpeed har rate-limitat dig (429).** "
+                         "Skaffa gratis API-nyckel: "
+                         "https://developers.google.com/speed/docs/insights/v5/get-started")
             else:
                 st.error(f"PageSpeed misslyckades: {e}")
         except Exception as e:
@@ -942,6 +931,27 @@ if go and url_input:
                          "https://developers.google.com/speed/docs/insights/v5/get-started")
             else:
                 st.error(f"PageSpeed misslyckades: {e}")
+
+    st.session_state["analysis"] = {
+        "url": url, "domain": domain, "company": company,
+        "strategy": strategy,
+        "seo_data": seo_data, "ps_data": ps_data,
+        "robots": robots, "tech_data": tech_data,
+    }
+
+if "analysis" in st.session_state and not (go and not url_input):
+    a = st.session_state["analysis"]
+    url = a["url"]
+    domain = a["domain"]
+    company = a["company"]
+    strategy = a["strategy"]
+    seo_data = a["seo_data"]
+    ps_data = a["ps_data"]
+    robots = a["robots"]
+    tech_data = a["tech_data"]
+
+    st.divider()
+    st.subheader(f"Resultat för {domain}")
 
     if seo_data and ps_data:
         overall = score_overall(
