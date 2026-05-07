@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import os
 import re
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse, quote_plus
 
 import requests
@@ -412,6 +414,143 @@ def detect_technologies(url: str) -> dict:
     for name, meta in found.items():
         by_category.setdefault(meta["category"], []).append(name)
     return {"techs": found, "by_category": by_category}
+
+
+# ─── Site crawler ────────────────────────────────────────────────────────────
+
+SKIP_EXTENSIONS = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg",
+                   ".pdf", ".zip", ".mp4", ".mp3", ".css", ".js",
+                   ".ico", ".woff", ".woff2", ".ttf")
+
+
+def fetch_sitemap_urls(base_url: str, max_urls: int = 50) -> list[str]:
+    """Hämta URLer från sitemap.xml — följer sitemap index och gzip-varianter."""
+    parsed = urlparse(base_url)
+    root = f"{parsed.scheme}://{parsed.netloc}"
+    domain = parsed.netloc.replace("www.", "")
+    urls: list[str] = []
+    seen_sitemaps: set[str] = set()
+    queue = [
+        root + "/sitemap.xml",
+        root + "/sitemap_index.xml",
+        root + "/wp-sitemap.xml",
+    ]
+    while queue and len(urls) < max_urls:
+        sm_url = queue.pop(0)
+        if sm_url in seen_sitemaps:
+            continue
+        seen_sitemaps.add(sm_url)
+        try:
+            r = requests.get(sm_url, headers={"User-Agent": UA}, timeout=12)
+            if r.status_code != 200 or "<urlset" not in r.text and "<sitemapindex" not in r.text:
+                continue
+            soup = BeautifulSoup(r.text, "xml")
+            for sm in soup.find_all("sitemap"):
+                loc = sm.find("loc")
+                if loc and loc.text.strip() not in seen_sitemaps:
+                    queue.append(loc.text.strip())
+            for u in soup.find_all("url"):
+                loc = u.find("loc")
+                if not loc:
+                    continue
+                page_url = loc.text.strip()
+                if domain not in page_url:
+                    continue
+                if page_url.lower().endswith(SKIP_EXTENSIONS):
+                    continue
+                urls.append(page_url)
+                if len(urls) >= max_urls:
+                    break
+        except Exception:
+            continue
+    seen, dedup = set(), []
+    for u in urls:
+        if u not in seen:
+            seen.add(u)
+            dedup.append(u)
+    return dedup[:max_urls]
+
+
+def _crawl_one(url: str, timeout: int = 10) -> dict:
+    try:
+        t0 = time.time()
+        r = requests.get(url, headers={"User-Agent": UA}, timeout=timeout,
+                         allow_redirects=True)
+        elapsed_ms = int((time.time() - t0) * 1000)
+        ctype = r.headers.get("content-type", "")
+        size_kb = len(r.content) // 1024
+        title, description, h1_count = None, None, 0
+        if "text/html" in ctype:
+            soup = BeautifulSoup(r.text, "html.parser")
+            t = soup.find("title")
+            title = t.get_text(strip=True) if t else None
+            d = soup.find("meta", attrs={"name": "description"})
+            description = d.get("content", "").strip() if d else None
+            h1_count = len(soup.find_all("h1"))
+        return {
+            "url": url, "status": r.status_code, "elapsed_ms": elapsed_ms,
+            "size_kb": size_kb, "title": title,
+            "description": description, "h1_count": h1_count,
+            "final_url": r.url,
+        }
+    except requests.exceptions.Timeout:
+        return {"url": url, "status": 0, "error": "timeout"}
+    except Exception as e:
+        return {"url": url, "status": 0, "error": str(e)[:60]}
+
+
+def crawl_pages(urls: list[str], concurrency: int = 8) -> list[dict]:
+    results: list[dict] = []
+    with ThreadPoolExecutor(max_workers=concurrency) as ex:
+        futures = {ex.submit(_crawl_one, u): u for u in urls}
+        for f in as_completed(futures):
+            results.append(f.result())
+    return results
+
+
+def analyze_crawl(results: list[dict]) -> dict:
+    successful = [r for r in results if 200 <= r.get("status", 0) < 400]
+    broken = [r for r in results if r.get("status", 0) == 0
+              or r.get("status", 0) >= 400]
+    redirects = [r for r in results
+                 if 300 <= r.get("status", 0) < 400
+                 or (r.get("final_url") and r.get("final_url") != r.get("url"))]
+
+    no_desc = [r for r in successful if not r.get("description")]
+    no_h1 = [r for r in successful if r.get("h1_count", 0) == 0]
+    multi_h1 = [r for r in successful if r.get("h1_count", 0) > 1]
+
+    title_groups: dict[str, list[str]] = {}
+    for r in successful:
+        if r.get("title"):
+            title_groups.setdefault(r["title"], []).append(r["url"])
+    dup_titles = [{"title": t, "urls": us}
+                  for t, us in title_groups.items() if len(us) > 1]
+
+    avg_ms = (int(sum(r["elapsed_ms"] for r in successful) / len(successful))
+              if successful else 0)
+    slow = sorted(
+        [r for r in successful if r.get("elapsed_ms")],
+        key=lambda x: -x["elapsed_ms"],
+    )[:5]
+    largest = sorted(
+        [r for r in successful if r.get("size_kb")],
+        key=lambda x: -x["size_kb"],
+    )[:5]
+
+    return {
+        "total": len(results),
+        "successful": len(successful),
+        "broken": broken,
+        "redirects": redirects,
+        "no_description": no_desc,
+        "no_h1": no_h1,
+        "multi_h1": multi_h1,
+        "duplicate_titles": dup_titles,
+        "avg_ms": avg_ms,
+        "slow": slow,
+        "largest": largest,
+    }
 
 
 def ad_library_links(domain: str, company: str, country: str = "SE") -> dict:
@@ -821,9 +960,14 @@ if go and url_input:
         gauges_html += "</div>"
         st.markdown(gauges_html, unsafe_allow_html=True)
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(
-        ["🔍 SEO & Fel", "⚡ Sidhastighet", "🛠️ Tech-stack", "📱 Sociala medier", "📢 Annonser"]
-    )
+    tab1, tab_crawl, tab2, tab3, tab4, tab5 = st.tabs([
+        "🔍 SEO & Fel",
+        "🕸️ Sajt-crawl",
+        "⚡ Sidhastighet",
+        "🛠️ Tech-stack",
+        "📱 Sociala medier",
+        "📢 Annonser",
+    ])
 
     with tab1:
         if seo_data:
@@ -862,6 +1006,85 @@ if go and url_input:
                             st.markdown(issue)
                     else:
                         st.success("Inga uppenbara SEO-fel hittades. 🎉")
+
+    with tab_crawl:
+        st.markdown(
+            "<p style='font-size:16px;color:#5a6470;'>Crawla webbplatsen för att hitta "
+            "trasiga länkar, missade meta-tags och duplicerat innehåll på alla sidor.</p>",
+            unsafe_allow_html=True,
+        )
+        crawl_key = f"crawl::{domain}"
+        max_pages = st.slider("Max antal sidor att crawla", 10, 100, 50, step=10)
+        if st.button("🕸️ Starta crawl", key="btn_crawl",
+                     use_container_width=True):
+            with st.spinner("Hämtar URL-lista från sitemap.xml..."):
+                urls = fetch_sitemap_urls(url, max_urls=max_pages)
+            if not urls:
+                st.warning("Ingen sitemap hittades. Kunde bara crawla startsidan.")
+                urls = [url]
+            else:
+                st.info(f"Hittade {len(urls)} URL:er i sitemap. Crawlar nu...")
+            progress = st.progress(0, text="Crawlar sidor...")
+            results = []
+            with ThreadPoolExecutor(max_workers=8) as ex:
+                futures = {ex.submit(_crawl_one, u): u for u in urls}
+                for i, f in enumerate(as_completed(futures), 1):
+                    results.append(f.result())
+                    progress.progress(i / len(urls),
+                                      text=f"Crawlar sidor... ({i}/{len(urls)})")
+            progress.empty()
+            st.session_state[crawl_key] = analyze_crawl(results)
+
+        crawl_res = st.session_state.get(crawl_key)
+        if crawl_res:
+            st.divider()
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("📄 Sidor", crawl_res["total"])
+            c2.metric("✅ OK", crawl_res["successful"])
+            c3.metric("❌ Trasiga", len(crawl_res["broken"]))
+            c4.metric("⏱️ Snitt-tid", f"{crawl_res['avg_ms']} ms")
+
+            if crawl_res["broken"]:
+                with st.container(border=True):
+                    st.markdown("##### ❌ Trasiga länkar")
+                    for r in crawl_res["broken"]:
+                        status = r.get("status") or r.get("error", "?")
+                        st.markdown(f"- `{status}` — [{r['url']}]({r['url']})")
+
+            issue_cols = st.columns(2)
+            with issue_cols[0]:
+                if crawl_res["no_description"]:
+                    with st.container(border=True):
+                        st.markdown(f"##### 📝 Saknar meta description ({len(crawl_res['no_description'])})")
+                        for r in crawl_res["no_description"][:8]:
+                            st.markdown(f"- [{r['url']}]({r['url']})")
+                        if len(crawl_res["no_description"]) > 8:
+                            st.caption(f"+ {len(crawl_res['no_description']) - 8} till")
+                if crawl_res["no_h1"]:
+                    with st.container(border=True):
+                        st.markdown(f"##### 🔠 Saknar H1 ({len(crawl_res['no_h1'])})")
+                        for r in crawl_res["no_h1"][:8]:
+                            st.markdown(f"- [{r['url']}]({r['url']})")
+            with issue_cols[1]:
+                if crawl_res["duplicate_titles"]:
+                    with st.container(border=True):
+                        st.markdown(f"##### 🔁 Duplicerade titles ({len(crawl_res['duplicate_titles'])})")
+                        for d in crawl_res["duplicate_titles"][:5]:
+                            st.markdown(f"**`{d['title'][:60]}`**")
+                            for u in d["urls"][:3]:
+                                st.markdown(f"  - [{u}]({u})")
+                if crawl_res["multi_h1"]:
+                    with st.container(border=True):
+                        st.markdown(f"##### ⚠️ Flera H1-taggar ({len(crawl_res['multi_h1'])})")
+                        for r in crawl_res["multi_h1"][:5]:
+                            st.markdown(f"- [{r['url']}]({r['url']}) ({r['h1_count']} H1)")
+
+            with st.expander(f"🐌 Långsammaste sidor (top {len(crawl_res['slow'])})"):
+                for r in crawl_res["slow"]:
+                    st.markdown(f"- **{r['elapsed_ms']} ms** — [{r['url']}]({r['url']})")
+            with st.expander(f"📦 Tyngsta sidor (top {len(crawl_res['largest'])})"):
+                for r in crawl_res["largest"]:
+                    st.markdown(f"- **{r['size_kb']} KB** — [{r['url']}]({r['url']})")
 
     with tab2:
         if ps_data:
