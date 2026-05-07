@@ -295,6 +295,125 @@ def check_robots_sitemap(base_url: str) -> dict:
     return out
 
 
+# ─── Tech-stack detection ────────────────────────────────────────────────────
+
+TECH_RULES: list[tuple[str, str, str, str]] = [
+    # (name, category, pattern_type, pattern)
+    # E-commerce
+    ("Shopify", "E-handel", "html", r"cdn\.shopify\.com|Shopify\.theme"),
+    ("Shopify", "E-handel", "header", r"x-shopify"),
+    ("WooCommerce", "E-handel", "html", r"woocommerce|wc-block"),
+    ("Magento", "E-handel", "html", r"Mage\.Cookies|/skin/frontend/"),
+    ("BigCommerce", "E-handel", "html", r"bigcommerce\.com|cdn11\.bigcommerce"),
+    ("Squarespace Commerce", "E-handel", "html", r"squarespace-cdn\.com.*commerce"),
+    ("Centra", "E-handel", "html", r"centra\.com|centraapi"),
+
+    # CMS
+    ("WordPress", "CMS", "html", r"/wp-content/|/wp-includes/|wp-json"),
+    ("Drupal", "CMS", "html", r"Drupal\.settings|/sites/default/files/"),
+    ("Webflow", "CMS", "html", r"webflow\.com|wf-loaded"),
+    ("Wix", "CMS", "html", r"static\.wixstatic|wix-code"),
+    ("Squarespace", "CMS", "html", r"squarespace\.com|static\.squarespace"),
+    ("Sanity", "CMS", "html", r"cdn\.sanity\.io"),
+    ("Contentful", "CMS", "html", r"cdn\.contentful\.com|images\.ctfassets"),
+
+    # Frontend frameworks
+    ("React", "Frontend", "html", r"__react|react-dom|_reactRoot"),
+    ("Next.js", "Frontend", "html", r"/_next/|__NEXT_DATA__"),
+    ("Vue.js", "Frontend", "html", r"vue\.js|__vue__|data-v-"),
+    ("Nuxt", "Frontend", "html", r"__NUXT__|/_nuxt/"),
+    ("Angular", "Frontend", "html", r"ng-version|angular\.js"),
+    ("Svelte", "Frontend", "html", r"svelte-|/_app/immutable/"),
+    ("Gatsby", "Frontend", "html", r"___gatsby|/page-data/"),
+
+    # Analytics
+    ("Google Analytics 4", "Analytics", "html",
+     r"googletagmanager\.com/gtag/js\?id=G-|gtag\('config',\s*'G-"),
+    ("Google Analytics (UA)", "Analytics", "html", r"google-analytics\.com/(ga|analytics)\.js|UA-\d{4,}"),
+    ("Google Tag Manager", "Analytics", "html", r"googletagmanager\.com/gtm\.js"),
+    ("Plausible", "Analytics", "html", r"plausible\.io/js"),
+    ("Fathom", "Analytics", "html", r"cdn\.usefathom\.com"),
+    ("Matomo", "Analytics", "html", r"matomo\.js|piwik\.js"),
+    ("Hotjar", "Analytics", "html", r"static\.hotjar\.com|hjid:\s*\d"),
+    ("Microsoft Clarity", "Analytics", "html", r"clarity\.ms/tag"),
+    ("Mixpanel", "Analytics", "html", r"cdn\.mxpnl\.com"),
+
+    # Marketing & email
+    ("Klaviyo", "E-postmarknadsföring", "html", r"klaviyo\.com|static\.klaviyo"),
+    ("Mailchimp", "E-postmarknadsföring", "html", r"chimpstatic\.com|list-manage\.com"),
+    ("HubSpot", "Marketing", "html", r"js\.hs-scripts\.com|hubspot"),
+    ("ActiveCampaign", "E-postmarknadsföring", "html", r"trackcmp\.net"),
+    ("Drip", "E-postmarknadsföring", "html", r"getdrip\.com"),
+
+    # Ads / pixels
+    ("Facebook Pixel", "Annonspixlar", "html", r"connect\.facebook\.net.*fbevents\.js|fbq\("),
+    ("TikTok Pixel", "Annonspixlar", "html", r"analytics\.tiktok\.com|ttq\.load"),
+    ("Pinterest Tag", "Annonspixlar", "html", r"s\.pinimg\.com/ct/core"),
+    ("LinkedIn Insight", "Annonspixlar", "html", r"snap\.licdn\.com/li\.lms"),
+    ("Snap Pixel", "Annonspixlar", "html", r"sc-static\.net/scevent"),
+    ("Google Ads Conversion", "Annonspixlar", "html", r"googleadservices\.com/pagead/conversion"),
+
+    # CDN & hosting
+    ("Cloudflare", "CDN/Hosting", "header", r"cf-ray|cloudflare"),
+    ("Vercel", "CDN/Hosting", "header", r"x-vercel"),
+    ("Netlify", "CDN/Hosting", "header", r"x-nf-request-id|netlify"),
+    ("AWS CloudFront", "CDN/Hosting", "header", r"x-amz-cf-id"),
+    ("Fastly", "CDN/Hosting", "header", r"x-served-by.*fastly|fastly-"),
+
+    # CSS / UI
+    ("Tailwind CSS", "Frontend", "html", r"tailwindcss|--tw-"),
+    ("Bootstrap", "Frontend", "html", r"bootstrap(\.min)?\.css|bootstrap@"),
+
+    # Chat / support
+    ("Intercom", "Kundtjänst", "html", r"widget\.intercom\.io"),
+    ("Drift", "Kundtjänst", "html", r"drift\.com|js\.driftt\.com"),
+    ("Zendesk Chat", "Kundtjänst", "html", r"zdassets\.com|zopim"),
+    ("Crisp", "Kundtjänst", "html", r"client\.crisp\.chat"),
+    ("Tawk.to", "Kundtjänst", "html", r"embed\.tawk\.to"),
+
+    # Payment
+    ("Klarna", "Betalning", "html", r"klarna\.com|cdn\.klarna"),
+    ("Stripe", "Betalning", "html", r"js\.stripe\.com"),
+    ("PayPal", "Betalning", "html", r"www\.paypal\.com/sdk"),
+
+    # Cookie / consent
+    ("CookieBot", "Consent", "html", r"consent\.cookiebot\.com"),
+    ("OneTrust", "Consent", "html", r"cdn\.cookielaw\.org|onetrust"),
+    ("Cookie Information", "Consent", "html", r"policy\.app\.cookieinformation"),
+]
+
+
+def detect_technologies(url: str) -> dict:
+    """Detect tech stack from HTML, headers and cookies."""
+    found: dict[str, dict] = {}
+    try:
+        r = requests.get(url, headers={"User-Agent": UA}, timeout=15)
+        html = r.text.lower()
+        headers_blob = "\n".join(f"{k}: {v}" for k, v in r.headers.items()).lower()
+        for name, category, ptype, pattern in TECH_RULES:
+            blob = html if ptype == "html" else headers_blob
+            if re.search(pattern.lower(), blob):
+                if name not in found:
+                    found[name] = {"category": category}
+        # Generator meta tag (often reveals CMS/framework)
+        try:
+            soup = BeautifulSoup(r.text, "html.parser")
+            gen = soup.find("meta", attrs={"name": "generator"})
+            if gen and gen.get("content"):
+                content = gen["content"]
+                if not any(k in content for k in found.keys()):
+                    found[content[:60]] = {"category": "Generator"}
+        except Exception:
+            pass
+    except Exception as e:
+        return {"error": str(e), "techs": {}}
+
+    by_category: dict[str, list[str]] = {}
+    for name, meta in found.items():
+        by_category.setdefault(meta["category"], []).append(name)
+    return {"techs": found, "by_category": by_category}
+
+
 def ad_library_links(domain: str, company: str, country: str = "SE") -> dict:
     return {
         "Meta Ad Library": (
@@ -655,6 +774,9 @@ if go and url_input:
     with st.spinner("Kontrollerar robots.txt och sitemap..."):
         robots = check_robots_sitemap(url)
 
+    with st.spinner("Identifierar tekniker..."):
+        tech_data = detect_technologies(url)
+
     with st.spinner(f"Kör Google PageSpeed Insights ({strategy})... kan ta 30–60s"):
         try:
             ps_raw = get_pagespeed(url, api_key, strategy)
@@ -699,7 +821,9 @@ if go and url_input:
         gauges_html += "</div>"
         st.markdown(gauges_html, unsafe_allow_html=True)
 
-    tab1, tab2, tab3, tab4 = st.tabs(["🔍 SEO & Fel", "⚡ Sidhastighet", "📱 Sociala medier", "📢 Annonser"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+        ["🔍 SEO & Fel", "⚡ Sidhastighet", "🛠️ Tech-stack", "📱 Sociala medier", "📢 Annonser"]
+    )
 
     with tab1:
         if seo_data:
@@ -785,6 +909,47 @@ if go and url_input:
                     st.success("Alla kontroller godkända.")
 
     with tab3:
+        if tech_data and tech_data.get("by_category"):
+            cat_emojis = {
+                "E-handel": "🛒", "CMS": "📝", "Frontend": "⚛️",
+                "Analytics": "📊", "E-postmarknadsföring": "✉️",
+                "Marketing": "📣", "Annonspixlar": "🎯",
+                "CDN/Hosting": "☁️", "Kundtjänst": "💬",
+                "Betalning": "💳", "Consent": "🍪", "Generator": "⚙️",
+            }
+            total_count = sum(len(v) for v in tech_data["by_category"].values())
+            st.markdown(
+                f"<p style='font-size:16px;color:#5a6470;'>Hittade "
+                f"<strong style='color:#1b2632;'>{total_count} tekniker</strong> "
+                f"fördelat på <strong style='color:#1b2632;'>"
+                f"{len(tech_data['by_category'])} kategorier</strong>.</p>",
+                unsafe_allow_html=True,
+            )
+            for cat, items in sorted(tech_data["by_category"].items()):
+                emoji = cat_emojis.get(cat, "🔧")
+                with st.container(border=True):
+                    st.markdown(f"##### {emoji} {cat}")
+                    badges_html = "<div style='margin-top:8px;'>"
+                    for tech in items:
+                        badges_html += (
+                            f"<span style='display:inline-block;"
+                            f"background:#1b2632;color:#fff;padding:6px 14px;"
+                            f"border-radius:20px;font-size:14px;font-weight:500;"
+                            f"margin:4px 6px 4px 0;'>{tech}</span>"
+                        )
+                    badges_html += "</div>"
+                    st.markdown(badges_html, unsafe_allow_html=True)
+
+            if "Analytics" not in tech_data["by_category"]:
+                st.warning("⚠️ Ingen analytics-lösning hittades — sajten mäter inte trafik.")
+            if "Annonspixlar" not in tech_data["by_category"]:
+                st.info("💡 Inga annonspixlar hittades. Företaget kan inte retargeta besökare.")
+        elif tech_data and tech_data.get("error"):
+            st.error(f"Kunde inte analysera tekniker: {tech_data['error']}")
+        else:
+            st.info("Inga kända tekniker identifierades. Detta kan bero på en mycket skräddarsydd lösning.")
+
+    with tab4:
         if seo_data:
             socials = seo_data["socials"]
             icons = {"Facebook": "📘", "Instagram": "📷", "LinkedIn": "💼",
@@ -809,7 +974,7 @@ if go and url_input:
                 st.info(f"🔍 Saknar länk till: **{', '.join(missing)}**. "
                         "De flesta B2C/B2B-företag bör synas på dessa.")
 
-    with tab4:
+    with tab5:
         st.write(f"### Annonser för {company} ({domain})")
         links = ad_library_links(domain, company, country)
         scraping_available = _playwright_available()
